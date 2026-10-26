@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>PennyWise — Student Budget Tracker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="title-row">
+            <h1 class="app-title">PennyWise</h1>
+            <span class="live-pulse-dot" title="Live Budget Sync"></span>
+          </div>
+          <p class="app-subtitle">Take control of your money.</p>
+        </div>
+      </div>
+      <div class="header-badges">
+        <div class="financial-health-badge" id="pennyScoreBadge" title="Student Financial Health Score">
+          <span class="score-icon">🌟</span>
+          <span class="score-label">Score:</span>
+          <span class="score-value" id="pennyScoreValue">100</span><span class="score-max">/100</span>
+        </div>
+        <button id="quickSampleBtn" class="btn-ghost" type="button" title="Load sample student expenses">Sample Data</button>
+        <button id="resetAllBtn" class="btn-ghost btn-danger-ghost" type="button" title="Reset all data">Reset</button>
+      </div>
+    </header>
+
+    <!-- Urgent Over-Expenditure & Custom Warning Limit Banner -->
+    <section id="customWarningBanner" class="alert-banner alert-hidden" role="alert" aria-live="assertive">
+      <div class="alert-icon" id="customAlertIcon">⚠️</div>
+      <div class="alert-content">
+        <div class="alert-title-row">
+          <h4 id="customAlertTitle" class="alert-title">Custom Limit Exceeded</h4>
+          <span class="alert-tag" id="customAlertTag">Manual Limit Breached</span>
+        </div>
+        <p id="customAlertMessage" class="alert-message">Your total expenditure has exceeded your manually decided threshold.</p>
+      </div>
+    </section>
+
+    <!-- Standard Budget Warning / Overspending Banner -->
+    <section id="budgetAlertBanner" class="alert-banner alert-hidden" role="alert" aria-live="polite">
+      <div class="alert-icon" id="alertIcon">⚠️</div>
+      <div class="alert-content">
+        <h4 id="alertTitle" class="alert-title">Budget Warning</h4>
+        <p id="alertMessage" class="alert-message">You have exceeded your monthly budget!</p>
+      </div>
+    </section>
+
+    <!-- Summary Cards Grid -->
+    <section class="summary-grid" aria-label="Budget Overview">
+      <!-- Monthly Budget Card -->
+      <div class="summary-card budget-card">
+        <div class="card-header">
+          <span class="card-label">Monthly Budget</span>
+          <span class="card-icon">🎯</span>
+        </div>
+        <div class="card-amount" id="budgetDisplay">₹0.00</div>
+        <div class="card-footer">
+          <button id="editBudgetBtn" class="btn-link" type="button">Edit Budget</button>
+          <span class="sub-text" id="budgetRemainingRatio">0% spent</span>
+        </div>
+      </div>
+
+      <!-- Total Expenses Card -->
+      <div class="summary-card expenses-card">
+        <div class="card-header">
+          <span class="card-label">Total Expenditure</span>
+          <span class="card-icon">💸</span>
+        </div>
+        <div class="card-amount" id="totalExpensesDisplay">₹0.00</div>
+        <div class="card-footer">
+          <span class="sub-text" id="expenseCountText">0 transactions</span>
+          <span class="status-pill status-neutral" id="dailyAvgText">₹0 / day</span>
+        </div>
+      </div>
+
+      <!-- Remaining Balance Card -->
+      <div class="summary-card balance-card" id="balanceCard">
+        <div class="card-header">
+          <span class="card-label">Remaining Balance</span>
+          <span class="card-icon" id="balanceIcon">⚖️</span>
+        </div>
+        <div class="card-amount" id="remainingBalanceDisplay">₹0.00</div>
+        <div class="card-footer">
+          <span class="status-pill status-healthy" id="balanceStatusPill">In Budget</span>
+        </div>
+      </div>
+
+      <!-- Warning Limit Card -->
+      <div class="summary-card limit-card" id="limitCard">
+        <div class="card-header">
+          <span class="card-label">Custom Warning Limit</span>
+          <span class="card-icon" id="limitIcon">🛡️</span>
+        </div>
+        <div class="card-amount" id="warningLimitDisplay">₹0.00</div>
+        <div class="card-footer">
+          <span class="status-pill status-neutral" id="limitStatusPill">Safe</span>
+          <button id="editLimitBtn" class="btn-link" type="button">Set Limit</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visual Budget & Expenditure Meter with Threshold Marker -->
+    <section class="meter-panel">
+      <div class="meter-header">
+        <div class="meter-info">
+          <span class="meter-title">Spending Utilization & Warning Threshold</span>
+          <span class="meter-subtitle" id="meterSubtitle">0% of monthly budget utilized</span>
+        </div>
+        <div class="meter-legend">
+          <span class="legend-item"><span class="legend-dot dot-spent"></span> Spent</span>
+          <span class="legend-item"><span class="legend-dot dot-limit"></span> Manual Alert Mark</span>
+          <span class="legend-item"><span class="legend-dot dot-budget"></span> Max Budget</span>
+        </div>
+      </div>
+      <div class="progress-track-wrapper">
+        <div class="progress-bar-container">
+          <div class="progress-bar" id="budgetProgressBar" style="width: 0%;"></div>
+          <!-- Marker pin for manually decided limit -->
+          <div class="limit-marker-pin" id="limitMarkerPin" style="left: 0%; display: none;" title="Your Custom Warning Limit">
+            <span class="marker-label">Alert Limit</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Category Spending Breakdown Strip -->
+    <section class="category-breakdown-section" id="categoryBreakdownSection" style="display: none;">
+      <div class="breakdown-header">
+        <span class="breakdown-title">📊 Spending by Category</span>
+      </div>
+      <div class="category-chips-row" id="categoryBreakdownRow">
+        <!-- Injected via JavaScript -->
+      </div>
+    </section>
+
+    <!-- Main Dashboard Two Columns -->
+    <div class="dashboard-layout">
+      <!-- Left Column: Forms & Limits -->
+      <div class="dashboard-column forms-column">
+        <!-- 1. Monthly Budget Panel -->
+        <section class="panel-card" id="budgetSettingSection">
+          <div class="panel-header">
+            <h2 class="panel-title">
+              <span class="panel-title-icon">💵</span>
+              1. Monthly Budget
+            </h2>
+            <span class="panel-subtitle">Define your total monthly allowance</span>
+          </div>
+
+          <form id="budgetForm" novalidate>
+            <div class="form-group">
+              <label for="monthlyBudgetInput" class="form-label">Monthly Budget (₹)</label>
+              <div class="input-wrapper">
+                <span class="input-currency-prefix">₹</span>
+                <input 
+                  type="number" 
+                  id="monthlyBudgetInput" 
+                  class="form-input with-prefix" 
+                  placeholder="e.g. 15000" 
+                  min="1" 
+                  step="any"
+                  required
+                >
+              </div>
+              <div id="budgetError" class="input-error-msg" aria-live="polite"></div>
+            </div>
+
+            <!-- Quick Preset Chips -->
+            <div class="quick-presets">
+              <span class="quick-presets-label">Quick set:</span>
+              <button type="button" class="preset-chip" data-preset="5000">₹5,000</button>
+              <button type="button" class="preset-chip" data-preset="10000">₹10,000</button>
+              <button type="button" class="preset-chip" data-preset="15000">₹15,000</button>
+              <button type="button" class="preset-chip" data-preset="25000">₹25,000</button>
+            </div>
+
+            <button type="submit" id="saveBudgetBtn" class="btn btn-primary btn-block">
+              Save Monthly Budget
+            </button>
+          </form>
+        </section>
+
+        <!-- 2. Manually Decided Expenditure Warning Limit Panel -->
+        <section class="panel-card limit-setting-panel" id="warningLimitSection">
+          <div class="panel-header">
+            <h2 class="panel-title">
+              <span class="panel-title-icon">⚡</span>
+              2. Custom Expenditure Warning Limit
+            </h2>
+            <span class="panel-subtitle">Get warned the moment total spending crosses this exact limit</span>
+          </div>
+
+          <form id="warningLimitForm" novalidate>
+            <div class="form-group">
+              <label for="warningLimitInput" class="form-label">Warning Limit (₹)</label>
+              <div class="input-wrapper">
+                <span class="input-currency-prefix">₹</span>
+                <input 
+                  type="number" 
+                  id="warningLimitInput" 
+                  class="form-input with-prefix" 
+                  placeholder="e.g. 8000" 
+                  min="1" 
+                  step="any"
+                  required
+                >
+              </div>
+              <div id="warningLimitError" class="input-error-msg" aria-live="polite"></div>
+            </div>
+
+            <!-- Warning Limit Quick Thresholds (% of Budget) -->
+            <div class="quick-presets">
+              <span class="quick-presets-label">Set as % of budget:</span>
+              <button type="button" class="limit-preset-chip" data-pct="70">70%</button>
+              <button type="button" class="limit-preset-chip" data-pct="80">80%</button>
+              <button type="button" class="limit-preset-chip" data-pct="90">90%</button>
+              <button type="button" class="limit-preset-chip" data-pct="95">95%</button>
+            </div>
+
+            <div class="limit-info-note" id="limitInfoNote">
+              💡 Trigger an instant alert when expenditures cross this amount.
+            </div>
+
+            <button type="submit" id="saveLimitBtn" class="btn btn-warning-outline btn-block">
+              Set Warning Limit
+            </button>
+          </form>
+        </section>
+
+        <!-- 3. Add Expense Form -->
+        <section class="panel-card">
+          <div class="panel-header">
+            <h2 class="panel-title">
+              <span class="panel-title-icon">➕</span>
+              3. Add Expense
+            </h2>
+            <span class="panel-subtitle">Fast recording with quick student chips</span>
+          </div>
+
+          <!-- Quick One-Tap Student Expense Chips -->
+          <div class="quick-expense-section">
+            <span class="quick-expense-label">⚡ Fast Add:</span>
+            <div class="quick-tags-container">
+              <button type="button" class="quick-tag-chip" data-name="Campus Canteen Lunch" data-cat="Food & Dining" data-amount="120">🍔 Lunch ₹120</button>
+              <button type="button" class="quick-tag-chip" data-name="Metro / Bus Fare" data-cat="Transport" data-amount="40">🚌 Metro ₹40</button>
+              <button type="button" class="quick-tag-chip" data-name="Chai & Snacks" data-cat="Food & Dining" data-amount="35">☕ Chai ₹35</button>
+              <button type="button" class="quick-tag-chip" data-name="Notes & Photocopy" data-cat="Books & Study" data-amount="60">📄 Print ₹60</button>
+            </div>
+          </div>
+
+          <form id="expenseForm" novalidate>
+            <!-- Expense Name -->
+            <div class="form-group">
+              <label for="expenseNameInput" class="form-label">Expense Name</label>
+              <input 
+                type="text" 
+                id="expenseNameInput" 
+                class="form-input" 
+                placeholder="e.g. Mess fees, Books, Recharge, Movie" 
+                autocomplete="off"
+                required
+              >
+              <div id="expenseNameError" class="input-error-msg" aria-live="polite"></div>
+            </div>
+
+            <!-- Category & Amount in Row -->
+            <div class="form-row">
+              <!-- Category -->
+              <div class="form-group col-half">
+                <label for="expenseCategorySelect" class="form-label">Category</label>
+                <div class="select-wrapper">
+                  <select id="expenseCategorySelect" class="form-input form-select" required>
+                    <option value="" disabled selected>Select category</option>
+                    <option value="Food & Dining">🍔 Food & Dining</option>
+                    <option value="Books & Study">📚 Books & Study</option>
+                    <option value="Transport">🚌 Transport</option>
+                    <option value="Rent & Utilities">🏠 Rent & Utilities</option>
+                    <option value="Entertainment">🎬 Entertainment</option>
+                    <option value="Tech & Recharge">📱 Tech & Recharge</option>
+                    <option value="Personal Care">🧴 Personal Care</option>
+                    <option value="Miscellaneous">🏷️ Miscellaneous</option>
+                  </select>
+                </div>
+                <div id="expenseCategoryError" class="input-error-msg" aria-live="polite"></div>
+              </div>
+
+              <!-- Amount -->
+              <div class="form-group col-half">
+                <label for="expenseAmountInput" class="form-label">Amount (₹)</label>
+                <div class="input-wrapper">
+                  <span class="input-currency-prefix">₹</span>
+                  <input 
+                    type="number" 
+                    id="expenseAmountInput" 
+                    class="form-input with-prefix" 
+                    placeholder="0.00" 
+                    min="0.01" 
+                    step="any"
+                    required
+                  >
+                </div>
+                <div id="expenseAmountError" class="input-error-msg" aria-live="polite"></div>
+              </div>
+            </div>
+
+            <button type="submit" id="addExpenseBtn" class="btn btn-accent btn-block">
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Add Expense
+            </button>
+          </form>
+        </section>
+      </div>
+
+      <!-- Right Column: Search, Filter, Sort & Expense List -->
+      <div class="dashboard-column list-column">
+        <section class="panel-card list-panel">
+          <div class="panel-header list-panel-header">
+            <div>
+              <h2 class="panel-title">
+                <span class="panel-title-icon">📋</span>
+                4. Expense Log
+              </h2>
+              <span class="panel-subtitle">Review, search, and manage spending</span>
+            </div>
+          </div>
+
+          <!-- Controls Bar: Search & Filters -->
+          <div class="list-controls-bar">
+            <div class="search-input-wrapper">
+              <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input 
+                type="text" 
+                id="searchExpenseInput" 
+                class="search-input" 
+                placeholder="Search expenses..."
+                aria-label="Search expenses"
+              >
+              <button type="button" id="clearSearchBtn" class="clear-search-btn" style="display:none;" aria-label="Clear search">✕</button>
+            </div>
+
+            <div class="filter-controls-group">
+              <select id="filterCategorySelect" class="filter-select" aria-label="Filter expenses by category">
+                <option value="ALL">All Categories</option>
+                <option value="Food & Dining">🍔 Food & Dining</option>
+                <option value="Books & Study">📚 Books & Study</option>
+                <option value="Transport">🚌 Transport</option>
+                <option value="Rent & Utilities">🏠 Rent & Utilities</option>
+                <option value="Entertainment">🎬 Entertainment</option>
+                <option value="Tech & Recharge">📱 Tech & Recharge</option>
+                <option value="Personal Care">🧴 Personal Care</option>
+                <option value="Miscellaneous">🏷️ Miscellaneous</option>
+              </select>
+
+              <select id="sortExpenseSelect" class="filter-select" aria-label="Sort expenses">
+                <option value="newest">📅 Newest First</option>
+                <option value="oldest">📅 Oldest First</option>
+                <option value="highest">💰 Highest Amount</option>
+                <option value="lowest">📉 Lowest Amount</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Expense List Container -->
+          <div class="expense-list-wrapper">
+            <ul id="expenseList" class="expense-list" aria-label="List of expenses">
+              <!-- Dynamically populated via script.js -->
+            </ul>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state">
+              <div class="empty-state-icon">👛</div>
+              <h3 class="empty-state-title">No expenses recorded yet</h3>
+              <p class="empty-state-text">
+                Start tracking your student budget by entering your monthly allowance and adding your first expense above.
+              </p>
+              <button type="button" id="emptyStateSampleBtn" class="btn btn-outline">
+                Load Example Student Expenses
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toastNotification" class="toast" role="status" aria-live="polite"></div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>PennyWise — Student Budget Tracker &copy; <span id="currentYear"></span>. Fast, responsive student financial control.</p>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

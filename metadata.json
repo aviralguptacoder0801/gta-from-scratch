@@ -1,0 +1,6 @@
+{
+  "name": "GTA V",
+  "description": "Grand Theft Auto V open-world crime action game. Explore Los Santos, switch between Michael, Franklin and Trevor, hijack vehicles, pull off heists, and outrun 5-star police pursuits.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
