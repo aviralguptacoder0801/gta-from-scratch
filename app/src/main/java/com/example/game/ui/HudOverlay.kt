@@ -168,7 +168,7 @@ fun HudOverlay(
             .size(44.dp)
             .clip(CircleShape)
             .background(Color(0xCC1E293B))
-            .border(1.5.dp, if (engineState.isFirstPerson) GtaGold else Color(0x66FFFFFF), CircleShape)
+            .border(1.5.dp, if (!engineState.isFirstPerson) GtaGold else Color(0x66FFFFFF), CircleShape)
             .clickable { engine.togglePOV() }
             .testTag("btn_toggle_pov"),
           contentAlignment = Alignment.Center
@@ -177,7 +177,87 @@ fun HudOverlay(
             text = if (engineState.isFirstPerson) "1P" else "3P",
             fontSize = 13.sp,
             fontWeight = FontWeight.Black,
-            color = if (engineState.isFirstPerson) GtaGold else Color.White
+            color = if (!engineState.isFirstPerson) GtaGold else Color.White
+          )
+        }
+
+        // Time of Day Dynamic Atmosphere Switcher (Noon / Sunset / Night)
+        Box(
+          modifier = Modifier
+            .height(44.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(Color(0xCC0F172A))
+            .border(1.5.dp, GtaGold.copy(alpha = 0.8f), RoundedCornerShape(22.dp))
+            .clickable { engine.cycleTimeOfDay() }
+            .padding(horizontal = 12.dp)
+            .testTag("btn_cycle_time_of_day"),
+          contentAlignment = Alignment.Center
+        ) {
+          Text(
+            text = engineState.timeOfDay.label,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Black,
+            color = GtaGold
+          )
+        }
+
+        // Quick Spawn: Hypercar Zentorno
+        Box(
+          modifier = Modifier
+            .height(44.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(Color(0xCC0F172A))
+            .border(1.5.dp, GtaGreen.copy(alpha = 0.8f), RoundedCornerShape(22.dp))
+            .clickable { engine.spawnZentorno() }
+            .padding(horizontal = 10.dp)
+            .testTag("btn_spawn_zentorno"),
+          contentAlignment = Alignment.Center
+        ) {
+          Text(
+            text = "🏎️ ZENTORNO",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Black,
+            color = GtaGreen
+          )
+        }
+
+        // Quick Spawn: Rhino Heavy Armor Tank
+        Box(
+          modifier = Modifier
+            .height(44.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(Color(0xCC0F172A))
+            .border(1.5.dp, Color(0xFFEAB308).copy(alpha = 0.8f), RoundedCornerShape(22.dp))
+            .clickable { engine.spawnTank() }
+            .padding(horizontal = 10.dp)
+            .testTag("btn_spawn_tank"),
+          contentAlignment = Alignment.Center
+        ) {
+          Text(
+            text = "🪖 TANK",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Black,
+            color = Color(0xFFFDE047)
+          )
+        }
+
+        // Quick Action: 5-Star Police Chase Pursuit
+        Box(
+          modifier = Modifier
+            .height(44.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(Color(0xCC0F172A))
+            .border(1.5.dp, GtaPoliceRed.copy(alpha = 0.8f), RoundedCornerShape(22.dp))
+            .clickable { engine.triggerMaxWanted() }
+            .padding(horizontal = 10.dp)
+            .testTag("btn_trigger_pursuit"),
+          contentAlignment = Alignment.Center
+        ) {
+          Text(
+            text = if (engineState.wantedStars > 0) "🚨 EVADE" else "⭐ 5-STAR",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Black,
+            color = if (engineState.wantedStars > 0) GtaPoliceRed else Color(0xFFF87171)
           )
         }
       }

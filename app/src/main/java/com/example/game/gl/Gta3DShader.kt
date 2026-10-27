@@ -49,8 +49,11 @@ object Gta3DShader {
     varying vec3 v_LightDir;
     
     void main() {
+        // Glowing emissive surfaces (Neon signs, vehicle headlights, traffic signals, streetlamp bulbs)
         if (u_Emissive > 0.5) {
-            gl_FragColor = v_Color;
+            // Emissive bloom boost for vivid GTA 5 nighttime & neon illumination
+            vec3 glowColor = v_Color.rgb * 1.25;
+            gl_FragColor = vec4(glowColor, v_Color.a);
             return;
         }
         
@@ -58,22 +61,39 @@ object Gta3DShader {
         vec3 light = normalize(v_LightDir);
         vec3 eye = normalize(v_EyeVec);
         
-        float ambient = 0.42;
-        float diff = max(dot(norm, light), 0.0) * 0.65;
+        // 1. Dual-Hemisphere Ambient Lighting (Warm Golden California Sun from zenith, cool cyan coastal sky fill)
+        float upDot = norm.z * 0.5 + 0.5;
+        vec3 skyColor = vec3(0.40, 0.62, 0.88);
+        vec3 groundColor = vec3(0.18, 0.20, 0.18);
+        vec3 ambient = mix(groundColor, skyColor, upDot) * 0.56;
         
+        // 2. Direct Sunlight with warm solar radiance
+        float nDotL = max(dot(norm, light), 0.0);
+        vec3 sunColor = vec3(1.0, 0.95, 0.84);
+        vec3 diffuse = v_Color.rgb * sunColor * nDotL * 0.76;
+        
+        // 3. Specular Metallic Highlights (Blinn-Phong) for vehicles, polished stone, and glass
         vec3 halfVec = normalize(light + eye);
-        float spec = pow(max(dot(norm, halfVec), 0.0), 16.0) * 0.35 * v_Color.a;
+        float nDotH = max(dot(norm, halfVec), 0.0);
+        float spec = pow(nDotH, 32.0) * 0.55 * v_Color.a;
         
-        vec3 shadedRgb = v_Color.rgb * (ambient + diff) + vec3(spec);
+        // 4. Subtle Fresnel Rim Reflection (metallic sheen on car body curves and building windows)
+        float fresnel = pow(1.0 - max(dot(norm, eye), 0.0), 3.0) * 0.32;
+        vec3 rimReflection = skyColor * fresnel * (0.4 + 0.6 * nDotL);
         
+        vec3 shadedRgb = v_Color.rgb * ambient + diffuse + vec3(spec) + rimReflection;
+        
+        // 5. Emergency police strobe beacon illumination
         if (u_PoliceLightIntensity > 0.01) {
-            shadedRgb += u_PoliceLightColor * u_PoliceLightIntensity;
+            shadedRgb += u_PoliceLightColor * u_PoliceLightIntensity * max(norm.z * 0.5 + 0.5, 0.25);
         }
         
-        float fogFactor = clamp((u_FogFar - v_FogDepth) / (u_FogFar - u_FogNear), 0.0, 1.0);
+        // 6. Smooth atmospheric exponential distance fog (Los Santos smog & coastal haze)
+        float fogFactor = clamp((u_FogFar - v_FogDepth) / max(u_FogFar - u_FogNear, 1.0), 0.0, 1.0);
+        fogFactor = fogFactor * fogFactor; // Quadratic atmospheric falloff
         vec3 finalColor = mix(u_FogColor.rgb, shadedRgb, fogFactor);
         
-        gl_FragColor = vec4(finalColor, 1.0);
+        gl_FragColor = vec4(finalColor, v_Color.a);
     }
   """
 

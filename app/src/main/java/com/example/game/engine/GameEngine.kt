@@ -24,24 +24,47 @@ import kotlin.math.sqrt
 import kotlin.random.Random
 
 class GameEngine(val soundManager: SoundManager) {
-  // Player state
-  var playerX = 1600f
-  var playerY = 3100f
-  var playerAngle = 0f
-  var playerYaw = 0f
-  var playerPitch = 0f
+  enum class TimeOfDay(
+    val label: String,
+    val skyR: Float, val skyG: Float, val skyB: Float,
+    val sunR: Float, val sunG: Float, val sunB: Float,
+    val fogR: Float, val fogG: Float, val fogB: Float,
+    val isNight: Boolean
+  ) {
+    NOON("☀️ NOON", 0.38f, 0.65f, 0.95f, 1.0f, 0.96f, 0.86f, 0.70f, 0.82f, 0.94f, false),
+    SUNSET("🌅 SUNSET", 0.92f, 0.44f, 0.18f, 1.0f, 0.62f, 0.22f, 0.88f, 0.42f, 0.28f, false),
+    NIGHT("🌙 NIGHT", 0.05f, 0.07f, 0.16f, 0.35f, 0.45f, 0.65f, 0.06f, 0.08f, 0.18f, true)
+  }
+  var currentTimeOfDay = TimeOfDay.NOON
+
+  fun cycleTimeOfDay() {
+    currentTimeOfDay = when (currentTimeOfDay) {
+      TimeOfDay.NOON -> TimeOfDay.SUNSET
+      TimeOfDay.SUNSET -> TimeOfDay.NIGHT
+      TimeOfDay.NIGHT -> TimeOfDay.NOON
+    }
+    soundManager.vibrate(30, 80)
+    triggerStateUpdate()
+  }
+
+  // Player state: Spawn right in Downtown Los Santos in front of the colossal Maze Bank Tower & Legion Square
+  var playerX = 2100f
+  var playerY = 1950f
+  var playerAngle = 90f
+  var playerYaw = 90f // Looking North toward Maze Bank Skyscraper & Vinewood Hills
+  var playerPitch = 6f
   var playerZ = 18f
   var walkBobPhase = 0f
-  var isFirstPerson = true
+  var isFirstPerson = false // Third-person cinematic view by default so character and supercars are immediately visible
   var isAimingDownSights = false
   var playerHealth = 100f
   var playerArmor = 100f
-  var playerCash = 25000L
+  var playerCash = 250000L
   var playerAbility = 100f
   var isAbilityActive = false
 
   var currentCharacter = CharacterType.FRANKLIN
-  var currentDistrict = "SOUTH LOS SANTOS"
+  var currentDistrict = "DOWNTOWN LOS SANTOS"
 
   // Weapons
   val inventory = mutableListOf(
@@ -78,6 +101,10 @@ class GameEngine(val soundManager: SoundManager) {
   // Input states
   var joystickX = 0f
   var joystickY = 0f
+  var smoothJoystickX = 0f
+  var smoothJoystickY = 0f
+  var invertJoystickY = false
+  var invertJoystickX = false
   var isPedalGas = false
   var isPedalBrake = false
   var isHandbrake = false
@@ -87,6 +114,12 @@ class GameEngine(val soundManager: SoundManager) {
   // Cheats / perks
   var isGodMode = false
   var hasExplosiveAmmo = false
+
+  fun toggleJoystickInvert() {
+    invertJoystickY = !invertJoystickY
+    soundManager.vibrate(40, 100)
+    triggerStateUpdate()
+  }
 
   // UI state flow for recomposition triggers
   data class EngineState(
@@ -106,12 +139,59 @@ class GameEngine(val soundManager: SoundManager) {
     val currentWeapon: Weapon,
     val activeMission: Mission?,
     val character: CharacterType,
-    val isFirstPerson: Boolean
+    val isFirstPerson: Boolean,
+    val invertJoystickY: Boolean = false,
+    val timeOfDay: TimeOfDay = TimeOfDay.NOON
   )
 
   fun togglePOV() {
     isFirstPerson = !isFirstPerson
     soundManager.vibrate(35, 100)
+    triggerStateUpdate()
+  }
+
+  fun spawnZentorno() {
+    val rad = playerYaw * PI.toFloat() / 180f
+    val car = VehicleEntity(
+      id = nextEntityId++,
+      model = VehicleModel.ZENTORNO,
+      x = playerX + cos(rad) * 26f + sin(rad) * 16f,
+      y = playerY + sin(rad) * 26f - cos(rad) * 16f,
+      angleDeg = playerYaw,
+      color = 0xFFF59E0B
+    )
+    vehicles.add(car)
+    soundManager.playHorn()
+    soundManager.vibrate(50, 150)
+    triggerStateUpdate()
+  }
+
+  fun spawnTank() {
+    val rad = playerYaw * PI.toFloat() / 180f
+    val tank = VehicleEntity(
+      id = nextEntityId++,
+      model = VehicleModel.RHINO_TANK,
+      x = playerX + cos(rad) * 44f,
+      y = playerY + sin(rad) * 44f,
+      angleDeg = playerYaw,
+      isTank = true,
+      color = 0xFF365314
+    )
+    vehicles.add(tank)
+    soundManager.playExplosion()
+    soundManager.vibrate(100, 250)
+    triggerStateUpdate()
+  }
+
+  fun triggerMaxWanted() {
+    wantedStars = if (wantedStars == 5) 0 else 5
+    if (wantedStars > 0) {
+      soundManager.setPoliceSirenActive(true)
+      soundManager.playTireScreech()
+    } else {
+      soundManager.setPoliceSirenActive(false)
+    }
+    soundManager.vibrate(80, 200)
     triggerStateUpdate()
   }
 
@@ -159,15 +239,15 @@ class GameEngine(val soundManager: SoundManager) {
       )
     }
 
-    // Spawn player's starting sports car right next to Franklin's house
+    // Spawn player's starting golden Zentorno supercar right beside player in Downtown Los Santos
     vehicles.add(
       VehicleEntity(
         id = nextEntityId++,
-        model = VehicleModel.BUFFALO,
-        x = 1640f,
-        y = 3120f,
-        angleDeg = 0f,
-        color = 0xFF10B981
+        model = VehicleModel.ZENTORNO,
+        x = 2125f,
+        y = 1960f,
+        angleDeg = 90f,
+        color = 0xFFF59E0B
       )
     )
 
@@ -529,6 +609,16 @@ class GameEngine(val soundManager: SoundManager) {
   }
 
   private fun updatePlayerAndVehicles(dt: Float) {
+    // Smooth analog joystick inputs with exponential damping filter
+    val rawTargetX = if (invertJoystickX) -joystickX else joystickX
+    val rawTargetY = if (invertJoystickY) -joystickY else joystickY
+    val smoothFactor = (1f - kotlin.math.exp(-20f * dt)).coerceIn(0.08f, 1f)
+    smoothJoystickX += (rawTargetX - smoothJoystickX) * smoothFactor
+    smoothJoystickY += (rawTargetY - smoothJoystickY) * smoothFactor
+
+    val forward = smoothJoystickY
+    val strafe = smoothJoystickX
+
     val car = currentVehicle
     if (car != null) {
       // VEHICLE DRIVING PHYSICS
@@ -537,26 +627,28 @@ class GameEngine(val soundManager: SoundManager) {
       val topSpeed = model.topSpeed * (if (currentCharacter == CharacterType.FRANKLIN && isAbilityActive) 1.25f else 1.0f)
       val turnSpeed = model.handling * (if (isHandbrake) 1.8f else 1.0f)
 
-      if (isPedalGas) {
-        car.speed = (car.speed + accel * 60f * dt).coerceAtMost(topSpeed)
-      } else if (isPedalBrake) {
-        car.speed = (car.speed - accel * 75f * dt).coerceAtLeast(-topSpeed * 0.4f)
+      // Throttle from gas pedal OR joystick forward (smooth analog acceleration)
+      if (isPedalGas || forward > 0.12f) {
+        val throttleMult = if (isPedalGas) 1f else forward.coerceIn(0f, 1f)
+        car.speed = (car.speed + accel * 60f * dt * throttleMult).coerceAtMost(topSpeed)
+      } else if (isPedalBrake || forward < -0.12f) {
+        val brakeMult = if (isPedalBrake) 1f else (-forward).coerceIn(0f, 1f)
+        car.speed = (car.speed - accel * 75f * dt * brakeMult).coerceAtLeast(-topSpeed * 0.45f)
       } else {
-        // Friction slowdown
+        // Natural coasting & friction deceleration
         car.speed *= (1f - 0.9f * dt).coerceIn(0f, 1f)
       }
 
       if (isHandbrake && kotlin.math.abs(car.speed) > 3f) {
         car.speed *= (1f - 1.5f * dt).coerceIn(0f, 1f)
         soundManager.playTireScreech()
-        // Spawn skid marks
         spawnSkidMarks(car.x, car.y, car.angleDeg)
       }
 
-      // Steering with joystick X
-      if (kotlin.math.abs(joystickX) > 0.1f) {
+      // Smooth steering with joystick X (pushing right turns right, pushing left turns left)
+      if (kotlin.math.abs(strafe) > 0.06f) {
         val dir = if (car.speed >= 0) 1f else -1f
-        car.angleDeg += joystickX * turnSpeed * 60f * dt * dir
+        car.angleDeg -= strafe * turnSpeed * 60f * dt * dir
       }
 
       // Move vehicle
@@ -614,16 +706,14 @@ class GameEngine(val soundManager: SoundManager) {
     } else {
       // ON FOOT MOVEMENT (First-Person Strafe & Directional Walking)
       val moveSpeed = if (isPedalGas || isHandbrake) 4.2f else 2.4f // sprint
-      val inputDist = hypot(joystickX, joystickY)
-      if (inputDist > 0.12f) {
-        walkBobPhase += dt * moveSpeed * 8f
+      val inputDist = hypot(strafe, forward)
+      if (inputDist > 0.08f) {
+        walkBobPhase += dt * moveSpeed * 8f * inputDist
         val radYaw = playerYaw * PI.toFloat() / 180f
-        // -joystickY = forward, joystickX = strafe right
-        val forward = -joystickY
-        val strafe = joystickX
 
-        val vx = (cos(radYaw) * forward - sin(radYaw) * strafe) * moveSpeed * 55f * dt
-        val vy = (sin(radYaw) * forward + cos(radYaw) * strafe) * moveSpeed * 55f * dt
+        // Natural FPS movement: forward moves along camera look direction, strafe moves perpendicular
+        val vx = (cos(radYaw) * forward + sin(radYaw) * strafe) * moveSpeed * 55f * dt
+        val vy = (sin(radYaw) * forward - cos(radYaw) * strafe) * moveSpeed * 55f * dt
 
         val nextX = (playerX + vx).coerceIn(30f, LosSantosWorld.WORLD_WIDTH - 30f)
         val nextY = (playerY + vy).coerceIn(30f, LosSantosWorld.WORLD_HEIGHT - 30f)
@@ -637,11 +727,10 @@ class GameEngine(val soundManager: SoundManager) {
         playerAngle = playerYaw
       }
 
-      aimAngle = if (hypot(joystickX, joystickY) > 0.15f) playerAngle else aimAngle
+      aimAngle = if (hypot(strafe, forward) > 0.15f) playerAngle else aimAngle
 
       // Ammu-Nation trigger on foot
       if (hypot(playerX - 2000f, playerY - 2735f) < 70f) {
-        // Refill weapons
         for (w in inventory) {
           if (w.type.maxAmmo > 0) {
             w.reserveAmmo = w.type.maxAmmo
@@ -983,6 +1072,8 @@ class GameEngine(val soundManager: SoundManager) {
     currentWeapon = inventory[currentWeaponIndex],
     activeMission = activeMission,
     character = currentCharacter,
-    isFirstPerson = isFirstPerson
+    isFirstPerson = isFirstPerson,
+    invertJoystickY = invertJoystickY,
+    timeOfDay = currentTimeOfDay
   )
 }

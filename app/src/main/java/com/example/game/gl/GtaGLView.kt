@@ -27,30 +27,7 @@ class GtaGLView(
 
   @SuppressLint("ClickableViewAccessibility")
   override fun onTouchEvent(event: MotionEvent): Boolean {
-    val x = event.x
-    val y = event.y
-
-    // Only process look swipe if touch is on the right half of the screen
-    if (x > width * 0.35f) {
-      when (event.actionMasked) {
-        MotionEvent.ACTION_DOWN -> {
-          previousX = x
-          previousY = y
-        }
-        MotionEvent.ACTION_MOVE -> {
-          val dx = x - previousX
-          val dy = y - previousY
-
-          engine.playerYaw = (engine.playerYaw + dx * lookSensitivity) % 360f
-          if (engine.playerYaw < 0) engine.playerYaw += 360f
-
-          engine.playerPitch = (engine.playerPitch - dy * lookSensitivity).coerceIn(-60f, 60f)
-
-          previousX = x
-          previousY = y
-        }
-      }
-    }
-    return true
+    // Return false so Compose overlay controls, joystick, and touch-to-look drag gestures receive all input
+    return false
   }
 }

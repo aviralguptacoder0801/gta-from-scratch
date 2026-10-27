@@ -106,7 +106,7 @@ fun GtaGameApp(engine: GameEngine) {
   var isPhoneOpen by remember { mutableStateOf(false) }
   var isCharacterWheelOpen by remember { mutableStateOf(false) }
   var isMapOpen by remember { mutableStateOf(false) }
-  var showWelcomeBanner by remember { mutableStateOf(true) }
+  var showWelcomeBanner by remember { mutableStateOf(false) }
 
   // 60 FPS Game Loop
   LaunchedEffect(Unit) {
